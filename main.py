@@ -1,5 +1,6 @@
 import win32gui as win
 import win32process as proc
+import os
 import time
 import datetime as dt
 import psutil 
@@ -41,10 +42,12 @@ def get_active_window(): # iegūstam aktīvo logu (nosaukumu un procesu)
     except Exception as e:
         print(f"Error getting active window: {e}")
         return None
-print (get_active_window())
-
 def track_activity():
+    today = dt.datetime.now().strftime("%Y-%m-%d")
+    filename = f"session_data_{today}.xlsx"
     session = SessionData.SessionData() # izveidojam sesiju
+    if os.path.exists(filename):
+        session.load_from_excel(filename)
     current_window = None
 
     try:
@@ -59,19 +62,24 @@ def track_activity():
                 if new_key not in session.entries:
                     session.add_entry(key = new_key, process=new_window['process'], title=new_window['title'], start_time=dt.datetime.now())
                 current_window = new_key
-                print(session.entries)
-            time.sleep(1)
+            else:
+                session.update_entry(current_window, dt.datetime.now())
+            time.sleep(1) # gaidām 1 sekundi pirms nākamās pārbaudes
     except KeyboardInterrupt:
         if current_window:
             session.update_entry(current_window, dt.datetime.now())
         print("Session ended.")
+        print(session.entries)
+
         _save_to_excel(session) # saglabājam datus Excel failā
 
 def _save_to_excel(data):
+        today = dt.datetime.now().strftime("%Y-%m-%d")
+        filename = f"session_data_{today}.xlsx"
         wb = Workbook()
         ws = wb.active
         ws.title = "Session Report"
-        ws.append(["Window Title", "Process", "Duration (HH:MM)", "Start Time", "Activity type"])
+        ws.append(["Window Title", "Process", "Duration (HH:MM)", "Start Time", "End Time", "Activity type"])
 
         styles = {cat: PatternFill(start_color=data["color"], fill_type="solid")  # pievienojam krāsu katrai kategorijai
                   for cat, data in CATEGORIES.items()}
@@ -84,13 +92,14 @@ def _save_to_excel(data):
                 entry["title"],
                 entry["process"],
                 duration,
-                entry["start_time"].strftime("%Y-%m-%d %H:%M:%S"),
+                entry["start"].strftime("%Y-%m-%d %H:%M:%S"),
+                entry["end"].strftime("%Y-%m-%d %H:%M:%S"),
                 category["name"]
             ])
-            ws.cell(row=ws.max_row, column=5).fill = styles.get(category["name"], default_style)
+            ws.cell(row=ws.max_row, column=4).fill = styles.get(category["name"], default_style)
 
-        wb.save("session_report.xlsx")
-        print(f"Данные сохранены в session_report.xlsx")
+        wb.save(filename)
+        print(f"Dati saglabāti: {filename}")
 
 def seconds_to_hhmm(seconds):
     hours = seconds // 3600 # 3600 sekundes = 1 stunda (saglabam tikati veselu skaitli)

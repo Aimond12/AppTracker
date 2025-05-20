@@ -3,6 +3,7 @@ import win32process as proc
 import time
 import datetime as dt
 import psutil 
+import SessionData
 from openpyxl import Workbook
 from openpyxl.styles import PatternFill
 
@@ -43,8 +44,7 @@ def get_active_window(): # iegūstam aktīvo logu (nosaukumu un procesu)
 print (get_active_window())
 
 def track_activity():
-    start_time = None
-    session_data = {}
+    session = SessionData.SessionData() # izveidojam sesiju
     current_window = None
 
     try:
@@ -52,50 +52,42 @@ def track_activity():
             new_window = get_active_window()
             if not new_window:
                 continue
-            key = f"{new_window['process']} - {new_window['title']}" # izveidojam atslēgu no procesa un loga nosaukuma
-            if key != current_window:
-                if current_window:
-                    duration = (dt.datetime.now() - start_time).total_seconds()
-                    if current_window in session_data:
-                        session_data[current_window]["duration"] += duration
-                        session_data[current_window]["end"] = dt.datetime.now()
-                    else:
-                        session_data[current_window] = {
-                            "process": current_window.split(" - ")[0],
-                            "title": current_window.split(" - ")[1],
-                            "duration": duration,
-                            "start": start_time,
-                            "end": dt.datetime.now(),
-                        }
-                current_window = key
-                start_time = dt.datetime.now()        
-                print(session_data)
-            time.sleep(1)    
+            new_key = f"{new_window['process']} - {new_window['title']}" # izveidojam atslēgu no procesa un loga nosaukuma
+            if new_key != current_window:
+                if current_window in session.entries:
+                    session.update_entry(current_window, dt.datetime.now())
+                if new_key not in session.entries:
+                    session.add_entry(key = new_key, process=new_window['process'], title=new_window['title'], start_time=dt.datetime.now())
+                current_window = new_key
+                print(session.entries)
+            time.sleep(1)
     except KeyboardInterrupt:
+        if current_window:
+            session.update_entry(current_window, dt.datetime.now())
         print("Session ended.")
-        _save_to_excel(session_data)
+        _save_to_excel(session) # saglabājam datus Excel failā
 
 def _save_to_excel(data):
         wb = Workbook()
         ws = wb.active
         ws.title = "Session Report"
-        ws.append(["Window Title", "Duration (HH:MM)", "Start Time", "Activity type"])
+        ws.append(["Window Title", "Process", "Duration (HH:MM)", "Start Time", "Activity type"])
 
         styles = {cat: PatternFill(start_color=data["color"], fill_type="solid")  # pievienojam krāsu katrai kategorijai
                   for cat, data in CATEGORIES.items()}
         default_style = PatternFill(start_color=DEFAULT_CATEGORY["color"], fill_type="solid") # noklusējuma krāsa
 
-        for key, value in data.items(): # izdzēšam nevajadzīgos datus
-            if value["duration"] < 1:
-                data.delete(key)
-            if key in SYSTEM_PROCESSES:
-                data.delete(key)
-
-        sorted_data = sorted(data.items(), key=lambda x: (get_category(x[1]["process"])["name"])) # kārtojam datus pēc kategorijām
-        for row, (key, value) in enumerate(sorted_data, start=2):
-            category = get_category(value["process"])
-            ws.append([value["title"], seconds_to_hhmm(value["duration"]), value["start"].strftime("%Y-%m-%d %H:%M:%S"), category["name"]])
-            ws.cell(row=ws.max_row, column=4).fill = styles.get(category["name"], default_style)
+        for key, entry in data.get_sorted_entries(sort_key="process"):
+            category = get_category(entry["process"])
+            duration = seconds_to_hhmm(entry["duration"])
+            ws.append([
+                entry["title"],
+                entry["process"],
+                duration,
+                entry["start_time"].strftime("%Y-%m-%d %H:%M:%S"),
+                category["name"]
+            ])
+            ws.cell(row=ws.max_row, column=5).fill = styles.get(category["name"], default_style)
 
         wb.save("session_report.xlsx")
         print(f"Данные сохранены в session_report.xlsx")

@@ -22,7 +22,7 @@ class SessionData: # Sesijas dati
                     "process": row[1].value,
                     "duration": self._hhmm_to_seconds(row[2].value),
                     "start": start_time,
-                    "end": end_time,
+                    "end": dt.datetime.now(),
                 }
                 key = f"{entry['process']} - {entry['title']}"
                 self.entries[key] = entry

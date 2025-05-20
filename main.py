@@ -96,7 +96,7 @@ def _save_to_excel(data):
                 entry["end"].strftime("%Y-%m-%d %H:%M:%S"),
                 category["name"]
             ])
-            ws.cell(row=ws.max_row, column=4).fill = styles.get(category["name"], default_style)
+            ws.cell(row=ws.max_row, column=6).fill = styles.get(category["name"], default_style)
 
         wb.save(filename)
         print(f"Dati saglabāti: {filename}")

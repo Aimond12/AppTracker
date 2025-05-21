@@ -48,7 +48,7 @@ class SessionData: # Sesijas dati
         entry["duration"] += duration
         entry["end"] = end_time
         self.total_duration += duration
-    def filter_entries(self, min_duration=1): # filtrējam ierakstus
+    def filter_entries(self, min_duration=0): # filtrējam ierakstus
         return {k: v for k, v in self.entries.items() if v["duration"] >= min_duration and v["process"] not in main.SYSTEM_PROCESSES}
     def get_sorted_entries(self, sort_key="process"): # iegūstam sakārtotus ierakstus pēc atslēgas
         filtered = self.filter_entries()

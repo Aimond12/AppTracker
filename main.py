@@ -7,7 +7,7 @@ import psutil
 import SessionData
 from openpyxl import Workbook
 from openpyxl.styles import PatternFill
-
+import matplotlib.pyplot as plt
 SYSTEM_PROCESSES = {'Explorer', 'Svchost', 'Taskmgr'}
 CATEGORIES = {
     "Browser": {
@@ -19,7 +19,7 @@ CATEGORIES = {
         "color": "FFF0E68C"
     },
     "Games": {
-        "processes": ["Steam", "Dota2", "Cs2", "Game"],
+        "processes": ["Steam", "Dota2", "Cs2", "Game", "Steamwebhelper"],
         "color": "FFFFC0CB"
     },
     "Messenger": {
@@ -69,9 +69,12 @@ def track_activity():
         if current_window:
             session.update_entry(current_window, dt.datetime.now())
         print("Session ended.")
-        print(session.entries)
+        for entry in session.entries.values():
+            print(f"Process: {entry['process']}, Title: {entry['title']}, Duration: {seconds_to_hhmm(entry['duration'])}")
 
         _save_to_excel(session) # saglabājam datus Excel failā
+        analyze_session(session) # analizējam datus un veidojam diagrammu
+        print("Dati saglabāti un analizēti.")
 
 def _save_to_excel(data):
         today = dt.datetime.now().strftime("%Y-%m-%d")
@@ -114,6 +117,54 @@ def get_category(process_name): # piešķiram kategoriju katram procesam
                 "color": data["color"]
             }
     return DEFAULT_CATEGORY
+
+def analyze_session(session): # datu analīze un diagrammas konstruēšana
+    if not session.entries:
+        print("Nav datu analīzei")
+        return
+
+    longest_entry = max(session.entries.values(), key=lambda x: x["duration"])
+    print(f"\nVisilgākais logs:")
+    print(f"Process: {longest_entry['process']}")
+    print(f"Title: {longest_entry['title']}")
+    print(f"Laiks: {seconds_to_hhmm(longest_entry['duration'])}")
+
+    categories = {} #datu savākšana
+    for entry in session.entries.values():
+        category = get_category(entry['process'])['name']
+        categories[category] = categories.get(category, 0) + entry['duration']
+
+
+    valid_categories = {} # nulles vērtību filtrēšana un krāsu pārveidošana
+    color_map = {}
+
+    for cat, duration in categories.items():
+        if duration > 0:
+            valid_categories[cat] = duration
+            hex_color = CATEGORIES.get(cat, DEFAULT_CATEGORY)['color'] # pārveidojam HEX krāsu formātu matplotlib saprotamajā formātā
+            color_map[cat] = f'#{hex_color[2:]}'  # Pārveidojam "FFB8F0B4" -> "#B8F0B4"
+
+    if not valid_categories:
+        print("\nNav datu diagrammai")
+        return
+
+    plt.figure(figsize=(10, 6)) # diagrammas sastādīšana
+    labels = list(valid_categories.keys())
+    sizes = list(valid_categories.values())
+    colors = [color_map[label] for label in labels]
+
+    wedgeprops = {
+        'linewidth': 1,  # Kontūra treknums
+        'edgecolor': 'black'  # Kontūra krāsa (var mainīt uz 'white' vai 'gray')
+    }
+
+    plt.pie(sizes, labels=labels, colors=colors, autopct='%1.1f%%', startangle=140,wedgeprops=wedgeprops)
+    plt.axis('equal')
+    plt.title('Atskaite')
+
+    plt.legend(labels, title="Kategorijas", loc="best") # leģenda
+
+    plt.show()
 
 if __name__ == "__main__":
     track_activity()

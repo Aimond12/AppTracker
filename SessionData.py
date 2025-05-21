@@ -1,55 +1,58 @@
-import main
-import os
 import datetime as dt
-from openpyxl import load_workbook
+from typing import List, Tuple, Dict
 
-class SessionData: # Sesijas dati
+class Entry: # vienas aktivitātes ierakstīšana
+
+    def __init__(self, process: str, title: str, start_time: dt.datetime):
+        self.process = process
+        self.title = title
+        self.start = start_time
+        self.end = start_time
+        self.duration = 0.0
+
+    def update(self, end_time: dt.datetime): # atjauno aktivitātes beigu laiku
+        self.end = end_time
+        self.duration = (self.end - self.start).total_seconds()
+
+
+class SessionData: # vārdnīca vairāku ierakstu apvienošanai
     def __init__(self):
-        self.entries = {} # izveidojam tukšu vārdnīcu
+        self._entries: List[Entry] = []
         self.total_duration = 0.0
-    def load_from_excel(self, filename): # ielādējam datus no Excel faila, ja tāds eksistē	
-        if not os.path.exists(filename):
-            return
-        wb = load_workbook(filename)
-        ws = wb.active
 
-        for row in ws.iter_rows(min_row=2):
-            try:
-                start_time = dt.datetime.strptime(row[3].value, "%Y-%m-%d %H:%M:%S")
-                end_time = dt.datetime.strptime(row[4].value, "%Y-%m-%d %H:%M:%S")
-                entry = {
-                    "title": row[0].value,
-                    "process": row[1].value,
-                    "duration": self._hhmm_to_seconds(row[2].value),
-                    "start": start_time,
-                    "end": dt.datetime.now(),
+    def add_entry(self, key: str, process: str, title: str, start_time: dt.datetime): # jaunā ieraksta pievienošana
+        self._entries.append(Entry(process, title, start_time))
+
+    def update_entry(self, key: str, end_time: dt.datetime): # ieraksta atjaunošana
+        process, title = key.split(" - ", 1)
+        for entry in self._entries:
+            if entry.process == process and entry.title == title:
+                entry.update(end_time)
+                self.total_duration += entry.duration
+                break
+
+    def get_sorted_entries(self, sort_key="process") -> List[Tuple[str, Dict]]: # ierakstu sakārtošana
+        return [
+            (
+                f"{entry.process} - {entry.title}",
+                {
+                    "process": entry.process,
+                    "title": entry.title,
+                    "start": entry.start,
+                    "end": entry.end,
+                    "duration": entry.duration
                 }
-                key = f"{entry['process']} - {entry['title']}"
-                self.entries[key] = entry
-            except Exception as e:
-                print(f"Error loading entry from Excel: {e}")
+            )
+            for entry in sorted(self._entries, key=lambda x: getattr(x, sort_key))
+        ]
 
-    def _hhmm_to_seconds(self, hhmm): # konvertējam HH:MM formātu uz sekundēm
-        hours, minutes = map(int, hhmm.split(':'))
-        return hours * 3600 + minutes * 60
-    
-    def add_entry(self, key, process, title, start_time): # pievienojam jaunu ierakstu
-        self.entries[key] = {
-            "process": process,
-            "title": title,
-            "start": start_time,
-            "end": start_time,
-            "duration": 0.0
+    def filter_entries(self, min_duration=1): # ierakstu filtrēšana
+        return {
+            f"{e.process} - {e.title}": {
+                "process": e.process,
+                "title": e.title,
+                "duration": e.duration
+            }
+            for e in self._entries
+            if e.duration >= min_duration
         }
-    def update_entry(self, key, end_time): # atjaunojam esošo ierakstu
-        entry = self.entries[key]
-        duration = (end_time - entry["end"]).total_seconds()
-        self.total_duration += entry["duration"]
-        entry["duration"] += duration
-        entry["end"] = end_time
-        self.total_duration += duration
-    def filter_entries(self, min_duration=1): # filtrējam ierakstus
-        return {k: v for k, v in self.entries.items() if v["duration"] >= min_duration and v["process"] not in main.SYSTEM_PROCESSES}
-    def get_sorted_entries(self, sort_key="process"): # iegūstam sakārtotus ierakstus pēc atslēgas
-        filtered = self.filter_entries()
-        return sorted(filtered.items(), key=lambda x: x[1][sort_key])

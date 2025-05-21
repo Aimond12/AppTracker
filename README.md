@@ -31,14 +31,14 @@ Izveido un parāda sektoru diagrammu, kas vizualizē laika sadalījumu pa katego
 
 Projekta gaitā tiek izmantotas šādas pielāgotas datu struktūras, kas definētas `SessionData.py`:
 
-`SessionData`: satur vairākus `Entry` objektus un ļauj veikt operācijas ar tiem.
+`SessionData`: Konteineris aktīvo logu un procesu datu glabāšanai un apstrādei
 
-Atribūts `_entries`: Vārdnīca, kurā glabājas visi aktivitāšu ieraksti. 
+Atribūts `entries`: Vārdnīca, kurā glabājas visi aktivitāšu ieraksti. 
 
-Atribūts `total_duration`: kopējais pavadītais laiks.
+Atribūts `total_duration`: kopējais logā pavadītais laiks (katrā ierakstīšanas sesijā).
 
 ## Programmas lietošanas metodes
-### <ins>`SessionData.py`</ins>'
+### <ins>`SessionData.py`</ins>
 Metode `add_entry(key, process, title, start_time)`: Pievieno jaunu ierakstu vārdnīcai.
 
 Metode `update_entry(key, end_time)`: atjaunina atbilstošā ieraksta beigu laiku un kopējo ilgumu.
@@ -46,7 +46,7 @@ Metode `update_entry(key, end_time)`: atjaunina atbilstošā ieraksta beigu laik
 Metode `get_sorted_entries(sort_key)`: atgriež sakārtotu ierakstu sarakstu.
 
 Metode `filter_entries(min_duration)`: filtrē ierakstus pēc minimālā ilguma (Atgriež jaunu vārdnīcu tikai ar ierakstiem, kur duration >= min_duration.).
-### <ins>`Main.py`</ins>'
+### <ins>`Main.py`</ins>
 Metode `get_active_window()`: Iegūst aktīvā loga nosaukumu un procesa informāciju.
 
 Metode `track_activity()`: Galvenais cikls, kas atjaunina datus ik sekundi.
@@ -54,7 +54,7 @@ Metode `track_activity()`: Galvenais cikls, kas atjaunina datus ik sekundi.
 Metode `analyze_session()`: Analizē un vizualizē datus, identificējot:
    - Visilgāk izmantoto logu
    - Laika sadalījumu pa kategorijām
-   
+
 Metode `_save_to_excel()`: Saglabā datus struktūrētā Excel failā ar laika zīmogu.
 
 ## Sagatavošanās

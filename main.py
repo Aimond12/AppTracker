@@ -43,6 +43,7 @@ def get_active_window(): # iegūstam aktīvo logu (nosaukumu un procesu)
         print(f"Error getting active window: {e}")
         return None
 def track_activity():
+    print("Sākt aktivitātes izsekošanu. Nospiediet Ctrl+C, lai pārtrauktu.")
     today = dt.datetime.now().strftime("%Y-%m-%d")
     filename = f"session_data_{today}.xlsx"
     session = SessionData.SessionData() # izveidojam sesiju
@@ -89,6 +90,8 @@ def _save_to_excel(data):
         default_style = PatternFill(start_color=DEFAULT_CATEGORY["color"], fill_type="solid") # noklusējuma krāsa
 
         for key, entry in data.get_sorted_entries(sort_key="process"):
+            if entry['process'] == None:
+                continue
             category = get_category(entry["process"])
             duration = seconds_to_hhmm(entry["duration"])
             ws.append([
@@ -119,18 +122,18 @@ def get_category(process_name): # piešķiram kategoriju katram procesam
     return DEFAULT_CATEGORY
 
 def analyze_session(session): # datu analīze un diagrammas konstruēšana
-    if not session.entries:
+    filtered_sessions = session.filter_entries()
+    if not filtered_sessions:
         print("Nav datu analīzei")
         return
-
-    longest_entry = max(session.entries.values(), key=lambda x: x["duration"])
+    longest_entry = max(filtered_sessions.values(), key=lambda x: x["duration"])
     print(f"\nVisilgākais logs:")
     print(f"Process: {longest_entry['process']}")
     print(f"Title: {longest_entry['title']}")
     print(f"Laiks: {seconds_to_hhmm(longest_entry['duration'])}")
 
     categories = {} #datu savākšana
-    for entry in session.entries.values():
+    for entry in filtered_sessions.values():
         category = get_category(entry['process'])['name']
         categories[category] = categories.get(category, 0) + entry['duration']
 
